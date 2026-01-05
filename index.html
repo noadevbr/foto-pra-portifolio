@@ -1,0 +1,246 @@
+<!-- 
+
+@license: MIT
+@author: NDBR / Noa
+
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+
+    <title>Foto pra portifólio</title>
+
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            background: #0c0c0c;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+
+        .panel {
+            width: 340px;
+            background: #151515;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .panel h2 {
+            text-align: center;
+            margin: 0;
+        }
+
+        .group {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #222;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+
+        input,
+        select,
+        button {
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        button {
+            background: #00ff00;
+            border: none;
+            padding: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            opacity: .9;
+        }
+
+        .preview {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(#111, #000);
+        }
+
+        .preview-wrapper {
+            max-width: 500px;
+            max-height: 500px;
+        }
+
+        .preview-wrapper canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="panel">
+        <h2>Foto pra portifólio</h2>
+
+        <label>
+            Sua foto (PNG, Fundo recortado...)
+            <input type="file" id="uploadImg" accept="image/png">
+        </label>
+
+        <div class="group">
+            <label>
+                Tamanho da borda
+                <input type="range" id="borda" min="0" max="300" value="50">
+            </label>
+
+            <label>
+                Cor da borda
+                <input type="color" id="corBorda" value="#00ff00">
+            </label>
+        </div>
+
+        <div class="group">
+            <label>
+                Fundo de dentro
+                <select id="tipoBg">
+                    <option value="grad">Gradiente</option>
+                    <option value="solid">Cor sólida</option>
+                </select>
+            </label>
+
+            <div id="gradBox">
+                <label>
+                    Cor gradiente 1
+                    <input type="color" id="g1" value="#000000">
+                </label>
+
+                <label>
+                    Cor gradiente 2
+                    <input type="color" id="g2" value="#00ff00">
+                </label>
+            </div>
+
+            <div id="solidBox" class="hidden">
+                <label>
+                    Cor sólida
+                    <input type="color" id="corFundo" value="#000000">
+                </label>
+            </div>
+        </div>
+
+        <button id="saveImg">salvar foto</button>
+    </div>
+
+    <div class="preview">
+        <div class="preview-wrapper">
+            <canvas id="tela"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let imagem = null;
+
+        const tela = document.getElementById("tela");
+        const ctx = tela.getContext("2d");
+
+        const uploadImg = document.getElementById("uploadImg");
+        const tipoBg = document.getElementById("tipoBg");
+
+        const gradBox = document.getElementById("gradBox");
+        const solidBox = document.getElementById("solidBox");
+
+        const borda = document.getElementById("borda");
+        const corBorda = document.getElementById("corBorda");
+        const g1 = document.getElementById("g1");
+        const g2 = document.getElementById("g2");
+        const corFundo = document.getElementById("corFundo");
+
+        document.querySelectorAll("input, select").forEach(el => {
+            el.addEventListener("input", draw)
+        });
+
+        tipoBg.addEventListener("change", () => {
+            gradBox.classList.toggle("hidden", tipoBg.value !== "grad");
+            solidBox.classList.toggle("hidden", tipoBg.value !== "solid");
+            draw();
+        });
+
+        uploadImg.addEventListener("change", e => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            imagem = new Image();
+            imagem.onload = () => {
+                tela.width = imagem.width;
+                tela.height = imagem.height;
+                draw();
+            };
+            imagem.src = URL.createObjectURL(file);
+        });
+
+        function draw() {
+            if (!imagem) return;
+
+            const tamBorda = +borda.value;
+            const size = Math.min(tela.width, tela.height);
+            const cx = tela.width / 2;
+            const cy = tela.height / 2;
+            const raio = size / 2 - tamBorda;
+
+            ctx.clearRect(0, 0, tela.width, tela.height);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+            ctx.clip();
+
+            if (tipoBg.value === "grad") {
+                const grad = ctx.createLinearGradient(cx, cy - raio, cx, cy + raio);
+                grad.addColorStop(0, g1.value);
+                grad.addColorStop(1, g2.value);
+                ctx.fillStyle = grad;
+            } else {
+                ctx.fillStyle = corFundo.value;
+            }
+
+            ctx.fillRect(0, 0, tela.width, tela.height);
+            ctx.drawImage(imagem, 0, 0);
+
+            ctx.restore();
+
+            if (tamBorda > 0) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+                ctx.lineWidth = tamBorda;
+                ctx.strokeStyle = corBorda.value;
+                ctx.stroke();
+            }
+        }
+
+        document.getElementById("saveImg").addEventListener("click", () => {
+            if (!imagem) return;
+            const a = document.createElement("a");
+            a.download = "foto-portifolio.png";
+            a.href = tela.toDataURL("image/png");
+            a.click();
+        });
+    </script>
+
+</body>
+
+</html>
